@@ -34,11 +34,24 @@ For a given year (defined by the LPS coordination for each student enrolled in t
 
 Supposing you have the URL for the CSV file, you can read the data using the code below. You can also download it manually and commit it to your repository to avoid an internet connection every time you knit this file. If the URL changes, the second solution might even make your analysis be more portable in time.
 
+
 ```{r}
-library(readr)
-URL <- "http://www.opendatapoa.com.br/storage/f/2013-11-06T17%3A26%3A29.293Z/acidentes-2000.csv"
-df <- read_delim(URL, delim=";")
-df
+library(dplyr);
+library(magrittr);
 ```
 
 
+```{r}
+library(readr)
+URL <- "http://www.opendatapoa.com.br/storage/f/2013-11-06T17%3A34%3A58.965Z/acidentes-2002.csv"
+df <- read_delim(URL, delim=";")
+df;
+```
+
+```{r}
+df$FX_HORA %>% hist(breaks=24, labels=TRUE)
+```
+
+```{r}
+df %>% mutate(involved = CAMINHAO + AUTO + TAXI + LOTACAO + ONIBUS_URB + ONIBUS_INT)
+```
