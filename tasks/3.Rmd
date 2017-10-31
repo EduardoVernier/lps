@@ -1,0 +1,143 @@
+---
+title: "Urban Accidents in the City of Porto Alegre"
+author: "Eduardo Vernier"
+date: "October 2017"
+output:
+  pdf_document:
+    number_sections: yes
+  html_document: default
+geometry: margin=1.5in, top=0.5in, bottom=0.5in
+---
+
+Each student should provide a Rmd file with _two_ to _four_ plots, with text describing the semantics of the data, the question, how they have answered the question, and an explanation for each figure, showing how that particular figure helps the answering of the initial question.  Fork the LPS repository in GitHub, push your Rmd solution there. Send us, by e-mail, the link for your GIT repository, indicating the PATH to the Rmd file. Check the LPS website for the deadline.
+
+# Introduction
+
+The City of Porto Alegre, under the transparency law, has provided a data set with all the urban accidents (within the city limits) since 2000. The data set, including a description of each column in the PDF file format, is available in the following website:
+
+http://www.datapoa.com.br/dataset/acidentes-de-transito
+
+# Goal
+
+For a given year (defined by the LPS coordination for each student enrolled in the cursus), the goal is to answer one of the following questions. The solution must use the data import and manipulation verbs of the R programming language and the tidyverse metapackage (readr, tidyr, dplyr) using Literate Programming.
+
+# Questions
+
+1. What is the time of the day with most accidents?
+2. How many vehicles are involved in the accidents?
+3. What types of accidents are more common?
+4. Is the number of deaths increasing or decreasing?
+5. Is there a street of the city with more accidents than others?
+6. Do holidays impact in the number of accidents?
+
+# Download the data
+
+Supposing you have the URL for the CSV file, you can read the data using the code below. You can also download it manually and commit it to your repository to avoid an internet connection every time you knit this file. If the URL changes, the second solution might even make your analysis be more portable in time.
+
+
+```{r}
+library(dplyr);
+library(magrittr);
+library(ggplot2);
+library(lubridate);
+```
+
+
+```{r, results="hide"}
+library(readr)
+URL <- "http://www.opendatapoa.com.br/storage/f/2013-11-06T17%3A34%3A58.965Z/acidentes-2002.csv"
+df <- read_delim(URL, delim=";");
+```
+
+## 1. What is the time of the day with most accidents?
+To answer this question, we group elements by the FX_HORA column and count how many observations there are in each of the 24 groups.
+After sorting, we can see that 18h is when most accidents happen.
+```{r}
+df %>%
+  group_by(FX_HORA) %>%
+  summarise(n=n()) %>%
+  arrange(-n)
+```
+
+
+In the year of 2002, 7.9% of accidents happened in the interval between 18:00 and 18:59. 
+```{r}
+df %>%
+  group_by(FX_HORA) %>%
+  summarise(n=n()) %>%
+  max() / nrow(df)
+```
+
+
+The distribution of number of accidents per hour can be seen in the histogram below.
+```{r}
+df %>%
+  group_by(FX_HORA) %>% 
+  summarise(n_accidents=n()) %>%
+  ggplot(aes(x=FX_HORA, y=n_accidents)) + 
+    geom_bar(stat="identity") + ylim(0,NA) + 
+    geom_text(aes(label=n_accidents), vjust=1.6, color="white", size=2.5) 
+```
+
+The day of the week also has a large impact on the number of accidents. Sundays tend to have less than half the number of accident seen on Fridays.
+```{r}
+df %>%
+  mutate(day_week = wday(DATA_HORA, label = TRUE)) %>% 
+  group_by(day_week) %>% 
+  summarise(n_accidents=n()) %>%
+  ggplot(aes(x=day_week, y=n_accidents)) + 
+    geom_bar(stat="identity") + 
+    ylim(0,NA) + 
+    geom_text(aes(label=n_accidents), vjust=1.6, color="white", size=4.5) 
+```
+
+We can combine these two factors in a single stacked bar chart.
+During weekdays, the amount of accidents in the first hours of the day is very low (top of the stack), as most people have to wake up early and the streets are empty. 
+On weekends, the variance between hours is much lower.
+```{r}
+zebra_colormap <- rep(c("red", "blue"), 12)
+
+df %>%
+  mutate(day_week = wday(DATA_HORA, label = TRUE)) %>% 
+  group_by(day_week, FX_HORA) %>% 
+  summarise(n_accidents=n()) %>%
+  mutate(hour = as.factor(FX_HORA)) %>%
+  ggplot(aes(x=day_week, y=n_accidents, fill=hour)) + 
+    geom_bar(stat="identity") + 
+    scale_fill_manual(values=zebra_colormap)
+```
+
+
+
+# Revised plots
+
+Heatmap with cool colormaps
+```{r}
+library(viridis)
+
+df %>%
+  mutate(day_week = wday(DATA_HORA, label = TRUE)) %>% 
+  group_by(day_week, FX_HORA) %>% 
+  summarise(n_accidents=n()) %>%
+  mutate(hour = as.factor(FX_HORA)) %>%
+  ggplot(aes(x = day_week, y = hour, fill = n_accidents)) + geom_tile() + 
+  scale_fill_viridis() + theme_bw() + 
+  xlab("Day of the week") + ylab("Hour of the day")
+```
+
+```{r}
+df %>%
+  mutate(day_week = wday(DATA_HORA, label = TRUE)) %>% 
+  group_by(day_week, FX_HORA) %>% 
+  summarise(n_accidents=n()) %>%
+  mutate(hour = as.factor(FX_HORA)) %>%
+  ggplot(aes(x = day_week, y = hour, fill = n_accidents)) + geom_tile() + 
+  scale_fill_viridis(option="magma") + theme_bw() + 
+  xlab("Day of the week") + ylab("Hour of the day") 
+  # + guides(fill=guide_legend(title="Number of accidents")) # Putting a legend name changes makes it "discrete"
+
+```
+
+
+I tried to sum rows and columns like shown below but I failed.
+https://stackoverflow.com/a/26151400
