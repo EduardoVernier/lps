@@ -1,12 +1,10 @@
 ---
 title: "Aspect Ratio Statistical Modelling"
+author: "Eduardo F. Vernier"
 output:
   html_document:
     highlight: pygments
 ---
-
-We'd like to analyse the output of a given treemap technique. In this document we
-
 
 
 First, set the working directory to be where this file is. In the IDE go to Session -> Set Working Directory -> To Source file Location.
@@ -22,7 +20,7 @@ library(magrittr)
 rectangle_files = list.files("./sqr-rectangles", pattern = ".*.rect", recursive = TRUE, full.names = TRUE)
 # There is too much data, let's sample
 set.seed(42)
-sample_size <- 20
+sample_size <- 300
 rectangle_files_sample = sample(rectangle_files, sample_size, replace = FALSE)
 
 
@@ -46,7 +44,12 @@ More specifically, we are interested in the longest and shortest side of each re
 df <- mutate(df, width = as.numeric(V4), height = as.numeric(V5))
 
 df <- mutate(df, longest = pmax(width, height) , shortest = pmin(width, height)) %>%
-  select(longest, shortest)
+  select(longest, shortest) %>%
+  filter(!is.na(longest)) %>% # Not sure why, but some rows had NAs. Maybe the remove null is not effective 
+  filter(!is.na(shortest))
+
+head(df)
+dim(df)
 ```
 
 Now let's see the difference between the max/min vs the min/max ratios.
@@ -65,25 +68,96 @@ df %>%
     geom_histogram()
 ```
 
-Much nicer distribution.
+Min/max procuces a much nicer looking and better behaved distribution. Let's use it for now on. 
 ```{r}
 library(moments)
+
+max_over_min = df$longest/df$shortest
+summary(max_over_min)
+sprintf("Standard deviation: %f", sd(max_over_min))
+sprintf("Kurtosis: %f", kurtosis(max_over_min))
+sprintf("Skewness: %f", skewness(max_over_min))
+
 min_over_max = df$shortest/df$longest
 summary(min_over_max)
-sd(min_over_max)
-kurtosis(min_over_max)
-skewness(min_over_max)
+sprintf("Standard deviation: %f", sd(min_over_max))
+sprintf("Kurtosis: %f", kurtosis(min_over_max))
+sprintf("Skewness: %f", skewness(min_over_max))
+```
 
-max_over_min = df$shortest/df$longest
-summary(max_over_min)
-sd(max_over_min)
-kurtosis(max_over_min)
-skewness(max_over_min)
+![](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Negative_and_positive_skew_diagrams_%28English%29.svg/446px-Negative_and_positive_skew_diagrams_%28English%29.svg.png)
 
+The skewness of a distribution is actually a really good metric to compare different techniques.
+In the case of shortest/longest side, the more negative the skewness, the best overall aspect ratios the techniques generates, i.e., there are more items closer to 1.
+
+
+Now that we have a feeling for the distribution, let's move to the interesting part.
+
+# Inference
+If we consider our datasets a truly random sample of the space of possible trees, we can make statistical claims about the whole population. 
+That is, we can infer, within a confidence interval (let's say 99%), that any rectangle produced by a certain techniques, will have a given mean and standard deviation.
+Bringing it closer to our problem, we could claim something like: 
+
+_There is a 99% chance that any rectagle produced by SQR will have aspect ratio in the range (0.67, 0.73). _
+
+ or
+
+_With a 99% confidence interval, any rectagle produced by SQR will have aspect ratio will have a mean of 0.7 with std of 0.3. _
+
+This decouples the results from the datasets. Our claims become geared towards the techniques themselves.
+Given that we could produce a result like this:
+
+![](./images/interval.png)
+
+Which in my opinion would be a really elegant way of comparing the visual quality of treemap techniques.
+
+Ok, how do we go about doing it?
+We do exactly like Sal Khan does here: 
+https://www.khanacademy.org/math/statistics-probability/confidence-intervals-one-sample/estimating-population-proportion/v/confidence-interval-example
+
+and 
+
+https://www.khanacademy.org/math/statistics-probability/confidence-intervals-one-sample/estimating-population-mean/v/confidence-interval-1
+
+Additional ref: https://www.stat.wisc.edu/~yandell/st571/R/append5.pdf
+
+There are two ways of estimating the population mean and standard deviation. One is generating a sample distribution and the other is 
+
+
+Because of the Central Limit Theorem, we know that the population mean is equal to the mean of the sampling distribution.
+
+We also know that the sampling distribution standard deviation can be be approximated by the population std divided by the sqrt of the sample size.
+
+So, first let's generate the sampling distribution:
+```{r}
+n_samples = 2000
+sample_size = 100000
+draws = sample(min_over_max, size = n_samples * sample_size, replace = TRUE)
+draws = matrix(draws, sample_size)
+dim(draws)
+sample_dist = apply(draws, 2, mean)
+
+simulated_estimate_population_mean = mean(sample_dist)
+simulated_estimate_population_sd = sd(sample_dist)
+sprintf("Mean: %f   Std: %f", simulated_estimate_population_mean, simulated_estimate_population_sd)
+
+sample_estimate_population_mean = mean(min_over_max)
+sample_estimate_population_sd  = sd(min_over_max) / sqrt(length(min_over_max))
+sprintf("Mean: %f   Std: %f", sample_estimate_population_mean, sample_estimate_population_sd)
+```
+Confirming the Central Limit Theorem, the mean of the sampling distribution approximates the mean of the population.
+
+```{r}
+ggplot() + aes(sample_dist) + geom_histogram()
 ```
 
 
+We can now estimate the std of the sample distribution by taking the std 
 
+Using a Z table, we know that if we want a confidence level of 99%, we need to consider the interval within 2.58 standard deviations of the mean.
 
+```{r}
+sprintf("99 per cent confidence inteval: %f +- %f", simulated_estimate_population_mean, 2.58 * simulated_estimate_population_sd)
+```
 
 
