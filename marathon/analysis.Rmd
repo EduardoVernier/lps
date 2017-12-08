@@ -8,7 +8,7 @@ library(dplyr);
 library(magrittr);
 library(ggplot2);
 library(lubridate);
-library(readr)
+library(readr);
 ```
 
 ```{r}
@@ -83,30 +83,50 @@ df %>%
                  position="identity", lwd=0.2) +
   ggtitle("Normalized")
 
+```
+
+
+
+```{r}
+n_groups <- 20
+zebra_colormap <- rep(c("red", "blue"), 20)
+
+df <- df[df$Official.Time < quantile(df$Official.Time, 0.99), ]
+
+
+#splits = split(df, cut(df$Official.Time, N))  # Time splits
+#splits <- split(df, rep(1:ceiling(nrow(df)/N), each=N, length.out=nrow(df)))  # N marathoners splits
+#df$group <- rep(1:ceiling(nrow(df)/n_groups), each=nrow(df)/n_groups, length.out=nrow(df))  # N marathoners splits
 df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
+df$group <- cut(df$Official.Time, n_groups)
+
+ggplot(df, aes(x=1:NROW(df), y=df$Official.Time,  col=as.factor(df$group))) + 
+  geom_point() + 
+  scale_color_manual(values=zebra_colormap)
 ```
 
 
 ```{r}
-N <- 20
-splits = split(df, cut(df$Official.Time, N))  # Time splits
-# splits <- split(df, rep(1:ceiling(nrow(df)/N), each=N, length.out=nrow(df)))  # N marathoners splits
+# df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
+
+splits = split(df, cut(df$Official.Time, n_groups))  # Time splits
 
 sd_df <- data.frame("n" = numeric(0), "mean" = numeric(0), "sd" = numeric(0))
-for (i in 1:N) {
+for (i in 1:n_groups) {
   sd <- as.numeric(splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
                     summarize(sample_sd = mean(SD, na.rm = TRUE)))
-  
+
   mean <- as.numeric(splits[[i]] %>%
                       select(Official.Time) %>%
                       summarize(mean = mean(Official.Time, na.rm = TRUE)))
-  
+
   n <- as.numeric(splits[[i]] %>%
                     select(Official.Time) %>%
                     summarize(n = n()))
-  
+
+
   sd_df[i,] = c(n, mean, sd)
 
 }
@@ -114,15 +134,12 @@ sd_df
 ```
 
 ```{r}
-ggplot(sd_df, aes(x=mean, y=sd)) + 
+ggplot(sd_df, aes(x=as.numeric(row.names(sd_df)), y=sd)) +
   geom_point()
   #geom_errorbar(aes(ymin=mean-N*sd, ymax=mean+N*sd), width=.2,
   #               position=position_dodge(0.05))
 ```
 
-
-Confidence Interval for the Population Standard Deviation
-https://www.youtube.com/watch?v=d7nLL6cUC0I
 
 
 

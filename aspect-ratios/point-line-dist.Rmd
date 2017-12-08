@@ -1,6 +1,10 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r, message=F, warning=F}
@@ -8,7 +12,7 @@ library(dplyr)
 library(magrittr)
 library(ggplot2)
 # Read rectangles from file
-filename = "/home/eduardo/Desktop/treemap-analysis/rectangles/sqr/cpython/t320.rect"
+filename = "./t320.rect"
 cls = c("character","numeric", "numeric", "numeric", "numeric")
 df = read.csv(filename, colClasses=cls, stringsAsFactors=FALSE, head=FALSE, sep=" ")
 n_rectangles = nrow(df)
@@ -38,6 +42,32 @@ ggplot(df, aes(df$l, df$s)) +
 
 ```
 
+```{r}
+library(viridis)
+
+ggplot(df, aes(df$l, df$s)) +
+  coord_fixed(ratio = 1) +
+  # stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE) + # KDE
+  scale_fill_viridis() + theme_bw() + 
+  geom_abline(slope=1, intercept=0) + 
+  geom_point(colour = "red", size = 0.3, alpha = 0.3) +
+  xlab("longer(r)") + ylab("shorter(r)")
+
+```
+
+
+
+```{r}
+library(viridis)
+
+ggplot(df, aes(df$l, df$s)) +
+  coord_fixed(ratio = 1) +
+  stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE) + # KDE
+  scale_fill_viridis() + theme_bw() + 
+  geom_abline(slope=1, intercept=0) + 
+  xlab("longer(r)") + ylab("shorter(r)")
+
+```
 
 ```{r}
 df = df %>%
@@ -46,9 +76,25 @@ df = df %>%
 sum(df[, "dist_point_line"]) / nrow(df)
 ```
 
+```{r}
+hist(df$dist_point_line, main="Histogram of distance to line metric")
+```
+
 
 ```{r}
-filename = "/home/eduardo/Desktop/treemap-analysis/rectangles/snd/cpython/t320.rect"
+df = df %>%
+  mutate(ls = l/s)
+
+sum(df[, "dist_point_line"]) / nrow(df)
+```
+
+```{r}
+hist(df$dist_point_line, main="Histogram of distance to line metric")
+```
+
+
+```{r}
+filename = "t320-snd.rect"
 cls = c("character","numeric", "numeric", "numeric", "numeric")
 df = read.csv(filename, colClasses=cls, stringsAsFactors=FALSE, head=FALSE, sep=" ")
 n_rectangles = nrow(df)
@@ -83,3 +129,62 @@ df = df %>%
 sum(df[, "dist_point_line"]) / nrow(df)
 ```
 
+
+```{r, message=F, warning=F}
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+# Read rectangles from file
+filename = "./t320-snd.rect"
+cls = c("character","numeric", "numeric", "numeric", "numeric")
+df = read.csv(filename, colClasses=cls, stringsAsFactors=FALSE, head=FALSE, sep=" ")
+n_rectangles = nrow(df)
+sprintf("Number of rectangles: %i", n_rectangles)
+# Extract column of width and height
+width  = df[, "V4"]
+height = df[, "V5"]
+
+df = df %>% 
+  mutate(width = as.numeric(V4), height = as.numeric(V5)) %>%
+  mutate(l = pmax(width, height)) %>%
+  mutate(s = pmin(width, height))
+```
+
+
+```{r}
+library(viridis)
+
+ggplot(df, aes(df$l, df$s)) +
+  #coord_fixed(ratio = 1) +
+  #stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE) +
+  #scale_fill_viridis() + theme_bw() + 
+  #stat_density_2d(geom = "point", aes(size = ..density..), n = 20, contour = FALSE) +
+  geom_abline(slope=1, intercept=0) + 
+  geom_point(colour = "red", size = 0.3, alpha = 0.3) +
+  xlab("longer(r)") + ylab("shorter(r)")
+
+```
+
+```{r}
+library(viridis)
+
+ggplot(df, aes(df$l, df$s)) +
+  coord_fixed(ratio = 1) +
+  # stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE) + # KDE
+  scale_fill_viridis() + theme_bw() + 
+  geom_abline(slope=1, intercept=0) + 
+  geom_point(colour = "red", size = 0.3, alpha = 0.3) +
+  xlab("longer(r)") + ylab("shorter(r)")
+
+```
+
+```{r}
+df = df %>%
+  mutate(dist_point_line = abs(l + s) / sqrt(2))
+
+sum(df[, "dist_point_line"]) / nrow(df)
+```
+
+```{r}
+hist(df$dist_point_line, main="Histogram of distance to line metric")
+```
