@@ -1,0 +1,134 @@
+---
+title: "2017 Boston Marathon Analysis"
+output: html_notebook
+---
+
+```{r}
+library(dplyr);
+library(magrittr);
+library(ggplot2);
+library(lubridate);
+library(readr)
+```
+
+```{r}
+df <- read.csv("./marathon_results_2017.csv", header=TRUE, stringsAsFactors=FALSE)
+df <- df[c('Age', 'M.F', 'X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K', 'Pace', 'Official.Time')]
+df %<>% filter(X5K != '-' & X10K != '-' & X15K != '-' & X20K != '-' & X25K != '-' & X30K != '-' & X35K != '-' & X40K != '-')
+df
+```
+
+```{r}
+cols <- c('X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K')
+df %<>% mutate_each_(funs(as.POSIXct(., format="%H:%M:%S")), cols)
+
+df$X40K <- as.numeric(difftime(df$X40K, df$X35K, units='secs'))
+df$X35K <- as.numeric(difftime(df$X35K, df$X30K, units='secs'))
+df$X30K <- as.numeric(difftime(df$X30K, df$X25K, units='secs'))
+df$X25K <- as.numeric(difftime(df$X25K, df$X20K, units='secs'))
+df$X20K <- as.numeric(difftime(df$X20K, df$X15K, units='secs'))
+df$X15K <- as.numeric(difftime(df$X15K, df$X10K, units='secs'))
+df$X10K <- as.numeric(difftime(df$X10K, df$X5K, units='secs'))
+df$X5K <- as.numeric(difftime(df$X5K, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
+colnames(df)[colnames(df) == 'M.F'] <- 'Gender'
+df
+```
+
+
+```{r}
+demo <- df %>%
+  mutate(Gender, Gender = ifelse('M' == Gender,'MEN', 'WOMEN')) %>% 
+  mutate(Age, Age = ifelse(Age > 40, 'OLD', 'YOUNG')) %>% 
+  group_by(Gender, Age) %>% 
+  count()
+
+demo$comb <- paste(demo$Age, demo$Gender)
+demo
+
+# pie charts in gg plot are just too much work
+#library(scales)
+#ggplot(demo, aes(x="", y=n, fill=factor(comb)))+
+#  geom_bar(width=1, stat="identity") +
+#  scale_fill_manual(values=c("#3617ff", "#e048ce", "#45caff", "#ffc4fb")) + 
+#  coord_polar("y", start=0) 
+```
+
+```{r}
+# Pie Chart with Percentages
+slices <- demo$n
+lbls <- demo$comb
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct) # add percents to labels 
+lbls <- paste(lbls,"%",sep="") # ad % to labels 
+pie(slices, labels = lbls, col=c("blue", "cyan", "violet", "pink"), main="Distribution of gender and age")
+```
+
+
+Finishing times by gender
+
+```{r}
+df$Official.Time <- as.POSIXct(df$Official.Time, format="%H:%M:%S")
+ggplot(df, aes(df$Official.Time, fill = df$Gender)) +
+  geom_histogram(aes(y=..density..), alpha=0.6, 
+                 position="identity", lwd=0.2) +
+  ggtitle("Normalized")
+```
+
+
+```{r}
+df %>%
+  mutate(Age, Age = ifelse(Age > 40, 'OLD', 'YOUNG')) %>% 
+  ggplot(aes(Official.Time, fill = Age)) +
+    geom_histogram(aes(y=..density..), alpha=0.6, 
+                 position="identity", lwd=0.2) +
+  ggtitle("Normalized")
+
+df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
+```
+
+
+```{r}
+N <- 20
+splits = split(df, cut(df$Official.Time, N))  # Time splits
+# splits <- split(df, rep(1:ceiling(nrow(df)/N), each=N, length.out=nrow(df)))  # N marathoners splits
+
+sd_df <- data.frame("n" = numeric(0), "mean" = numeric(0), "sd" = numeric(0))
+for (i in 1:N) {
+  sd <- as.numeric(splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+  
+  mean <- as.numeric(splits[[i]] %>%
+                      select(Official.Time) %>%
+                      summarize(mean = mean(Official.Time, na.rm = TRUE)))
+  
+  n <- as.numeric(splits[[i]] %>%
+                    select(Official.Time) %>%
+                    summarize(n = n()))
+  
+  sd_df[i,] = c(n, mean, sd)
+
+}
+sd_df
+```
+
+```{r}
+ggplot(sd_df, aes(x=mean, y=sd)) + 
+  geom_point()
+  #geom_errorbar(aes(ymin=mean-N*sd, ymax=mean+N*sd), width=.2,
+  #               position=position_dodge(0.05))
+```
+
+
+Confidence Interval for the Population Standard Deviation
+https://www.youtube.com/watch?v=d7nLL6cUC0I
+
+
+
+
+
+
+
+
+
