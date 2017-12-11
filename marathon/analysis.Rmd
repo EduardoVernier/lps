@@ -89,7 +89,7 @@ df %>%
 
 ```{r}
 n_groups <- 20
-zebra_colormap <- rep(c("red", "blue"), 20)
+zebra_colormap <- rep(c("black", "purple"), 20)
 
 df <- df[df$Official.Time < quantile(df$Official.Time, 0.99), ]
 
@@ -106,10 +106,13 @@ ggplot(df, aes(x=1:NROW(df), y=df$Official.Time,  col=as.factor(df$group))) +
 ```
 
 
+
+
 ```{r}
 # df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
 
 splits = split(df, cut(df$Official.Time, n_groups))  # Time splits
+
 
 sd_df <- data.frame("n" = numeric(0), "mean" = numeric(0), "sd" = numeric(0))
 for (i in 1:n_groups) {
@@ -133,12 +136,72 @@ for (i in 1:n_groups) {
 sd_df
 ```
 
+
+Are faster atletes more disciplined?
 ```{r}
 ggplot(sd_df, aes(x=as.numeric(row.names(sd_df)), y=sd)) +
   geom_point()
   #geom_errorbar(aes(ymin=mean-N*sd, ymax=mean+N*sd), width=.2,
   #               position=position_dodge(0.05))
 ```
+
+Are women more disciplined than men?
+```{r}
+women <- df %>%
+  filter(Gender == 'F')
+
+men <- df %>%
+  filter(Gender == 'M')
+
+w_splits = split(women, women$group)  # Time splits
+m_splits = split(men, men$group)  # Time splits
+
+
+g_sd_df <- data.frame("gender" = character(0), "n" = numeric(0), "sd" = numeric(0), stringsAsFactors = FALSE)
+for (i in 1:n_groups) {
+  gender <- 'M'
+  
+  sd <- as.numeric(m_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+
+  n <- as.numeric(m_splits[[i]] %>%
+                    select(Official.Time) %>%
+                    summarize(n = n()))
+
+
+  g_sd_df[nrow(g_sd_df) + 1,] = c(gender, n, sd)
+  
+  gender <- 'F'
+  
+  sd <- as.numeric(w_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+
+  n <- as.numeric(w_splits[[i]] %>%
+                    select(Official.Time) %>%
+                    summarize(n = n()))
+  
+  if (n != 0) {
+    g_sd_df[nrow(g_sd_df) + 1,] = c(gender, n, sd)
+  }
+
+  
+}
+g_sd_df$n <- as.numeric(g_sd_df$n)
+g_sd_df$sd <- as.numeric(g_sd_df$sd)
+g_sd_df
+```
+
+
+```{r}
+ggplot(g_sd_df) +
+  geom_point(aes(x=as.numeric(row.names(g_sd_df)), y=sd, colour=gender))
+
+```
+
 
 
 
