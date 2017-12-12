@@ -13,14 +13,14 @@ library(readr);
 
 ```{r}
 df <- read.csv("./marathon_results_2017.csv", header=TRUE, stringsAsFactors=FALSE)
-df <- df[c('Age', 'M.F', 'X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K', 'Pace', 'Official.Time')]
+df <- df[c('Age', 'M.F', 'X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K', 'Official.Time')]
 df %<>% filter(X5K != '-' & X10K != '-' & X15K != '-' & X20K != '-' & X25K != '-' & X30K != '-' & X35K != '-' & X40K != '-')
 df
 ```
 
 ```{r}
 cols <- c('X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K')
-df %<>% mutate_each_(funs(as.POSIXct(., format="%H:%M:%S")), cols)
+df %<>% mutate_each_(funs(as.POSIXct(., format="%H:%M:%S")), cols);
 
 df$X40K <- as.numeric(difftime(df$X40K, df$X35K, units='secs'))
 df$X35K <- as.numeric(difftime(df$X35K, df$X30K, units='secs'))
@@ -89,7 +89,7 @@ df %>%
 
 ```{r}
 n_groups <- 20
-zebra_colormap <- rep(c("black", "purple"), 20)
+zebra_colormap <- rep(c("darkcyan", "cyan"), 20)
 
 df <- df[df$Official.Time < quantile(df$Official.Time, 0.99), ]
 
@@ -97,53 +97,16 @@ df <- df[df$Official.Time < quantile(df$Official.Time, 0.99), ]
 #splits = split(df, cut(df$Official.Time, N))  # Time splits
 #splits <- split(df, rep(1:ceiling(nrow(df)/N), each=N, length.out=nrow(df)))  # N marathoners splits
 #df$group <- rep(1:ceiling(nrow(df)/n_groups), each=nrow(df)/n_groups, length.out=nrow(df))  # N marathoners splits
-df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
+df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='mins'))
 df$group <- cut(df$Official.Time, n_groups)
 
-ggplot(df, aes(x=1:NROW(df), y=df$Official.Time,  col=as.factor(df$group))) + 
-  geom_point() + 
-  scale_color_manual(values=zebra_colormap)
+ggplot(df) + 
+  geom_point(aes(x=1:NROW(df), y=df$Official.Time,  col=as.factor(df$group))) +
+  scale_color_manual(values=zebra_colormap) +
+  theme_bw()
 ```
 
 
-
-
-```{r}
-# df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
-
-splits = split(df, cut(df$Official.Time, n_groups))  # Time splits
-
-
-sd_df <- data.frame("n" = numeric(0), "mean" = numeric(0), "sd" = numeric(0))
-for (i in 1:n_groups) {
-  sd <- as.numeric(splits[[i]] %>%
-                    select(cols) %>%
-                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
-
-  mean <- as.numeric(splits[[i]] %>%
-                      select(Official.Time) %>%
-                      summarize(mean = mean(Official.Time, na.rm = TRUE)))
-
-  n <- as.numeric(splits[[i]] %>%
-                    select(Official.Time) %>%
-                    summarize(n = n()))
-
-
-  sd_df[i,] = c(n, mean, sd)
-
-}
-sd_df
-```
-
-
-Are faster atletes more disciplined?
-```{r}
-ggplot(sd_df, aes(x=as.numeric(row.names(sd_df)), y=sd)) +
-  geom_point()
-  #geom_errorbar(aes(ymin=mean-N*sd, ymax=mean+N*sd), width=.2,
-  #               position=position_dodge(0.05))
-```
 
 Are women more disciplined than men?
 ```{r}
@@ -153,60 +116,146 @@ women <- df %>%
 men <- df %>%
   filter(Gender == 'M')
 
+b_splits = split(df, df$group)  # Time splits
 w_splits = split(women, women$group)  # Time splits
 m_splits = split(men, men$group)  # Time splits
 
 
-g_sd_df <- data.frame("gender" = character(0), "n" = numeric(0), "sd" = numeric(0), stringsAsFactors = FALSE)
+g_sd_df <- data.frame("group" = numeric(0),
+                      "gender" = character(0),
+                      "n" = numeric(0),
+                      "mean_sd" = numeric(0),
+                      "sd_sd" = numeric(0),
+                      stringsAsFactors = FALSE)
+
 for (i in 1:n_groups) {
   gender <- 'M'
-  
-  sd <- as.numeric(m_splits[[i]] %>%
+  mean_sd <- as.numeric(m_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
-
+                    summarize(sample_sd = mean(SD, na.rm = TRUE), sd(SD, na.rm = TRUE)))
   n <- as.numeric(m_splits[[i]] %>%
                     select(Official.Time) %>%
                     summarize(n = n()))
-
-
-  g_sd_df[nrow(g_sd_df) + 1,] = c(gender, n, sd)
+  g_sd_df[nrow(g_sd_df) + 1,] = c(i, gender, n, mean_sd, sd_sd)
+  
   
   gender <- 'F'
-  
-  sd <- as.numeric(w_splits[[i]] %>%
+  mean_sd <- as.numeric(w_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
-
+                    summarize(sample_sd = mean(SD, na.rm = TRUE), sd(SD, na.rm = TRUE)))
   n <- as.numeric(w_splits[[i]] %>%
                     select(Official.Time) %>%
                     summarize(n = n()))
-  
   if (n != 0) {
-    g_sd_df[nrow(g_sd_df) + 1,] = c(gender, n, sd)
+    g_sd_df[nrow(g_sd_df) + 1,] = c(i, gender, n, mean_sd, sd_sd)
   }
 
+  gender <- 'B'
+  mean_sd <- as.numeric(b_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+  n <- as.numeric(b_splits[[i]] %>%
+                    select(Official.Time) %>%
+                    summarize(n = n()))
+  g_sd_df[nrow(g_sd_df) + 1,] = c(i, gender, n, mean_sd, sd_sd)
   
 }
+
+
 g_sd_df$n <- as.numeric(g_sd_df$n)
-g_sd_df$sd <- as.numeric(g_sd_df$sd)
+g_sd_df$mean_sd <- as.numeric(g_sd_df$mean_sd)
+g_sd_df$sd_sd <- as.numeric(g_sd_df$sd_sd)
+g_sd_df$group <- as.numeric(g_sd_df$group)
 g_sd_df
 ```
 
 
 ```{r}
 ggplot(g_sd_df) +
-  geom_point(aes(x=as.numeric(row.names(g_sd_df)), y=sd, colour=gender))
+  geom_point(aes(x=group, y=mean_sd, colour=gender)) +
+  scale_color_manual(values=c('black', 'violet', 'blue')) +
+  theme_bw()
+```
+
+```{r}
+g_sd_df <- filter(g_sd_df, g_sd_df$gender == 'M' | g_sd_df$gender == 'F')
+g_sd_df$error <- (1.96 * g_sd_df$sd_sd) / sqrt(g_sd_df$n) 
+g_sd_df
+
+ggplot(g_sd_df, aes(x=group, y=mean_sd, colour=gender)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean_sd - error, ymax=mean_sd + error)) +
+  scale_color_manual(values=c('violet', 'blue')) +
+  theme_bw()
 
 ```
 
 
 
 
+```{r}
+if (!file.exists('animation.gif')) {
+  library(animation)
+
+  n_samples <- 20
+  sample <- df %>%
+    group_by(group) %>%
+    sample_n(n_samples, replace=TRUE)
+  
+  times <- t(data.matrix(select(sample, cols)))
+  
+  makeplot <- function() {
+    for(i in 1:nrow(sample)) {
+    
+      plot.ts(times[cols,1:i], 
+              plot.type="single", 
+              lwd=0.5, 
+              col=rep(rainbow(n_groups), each=n_samples), 
+              ylim=c(900, 3000), 
+              xlab='', ylab='', axes = F)
+      
+      lines(times[cols,i], 
+            lwd=2, col=1, 
+            xlab='', ylab='', axes = F)
+      
+      title(main="5K pace analysis", sub=paste('Group rank #', as.character(ceiling(i/n_samples))), xlab="", ylab="Split time (seconds)")
+      axis(side=2,at=c(800, 1000, 1500, 2000, 2500, 3000),labels=c('800', '1000', '1500', '2000', '2500', '3000'))
+      axis(side=1,at=c(-10,1,2,3,4,5,6,7,8),labels=c('','5K', '10K', '15K', '20K', '25K', '30K', '35K', '40K'))
+    }
+  }
+  oopt = ani.options(interval = 0, nmax = n_runners)
+  saveGIF(makeplot(),interval = 0.1, width = 580, height = 400)
+  ani.options(oopt)
+}
+```
 
 
+![](animation.gif)
+
+ 
+
+
+```{r}
+corr <- df %>%
+  select(cols) %>%
+  transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+  select(c('SD')) %>%
+  as.data.frame()
+
+
+corr <- bind_cols(corr, select(df, c('Official.Time')))
+
+ggplot(corr, aes(x=Official.Time, y=SD)) +
+  #stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE)
+  #stat_density_2d(aes(fill = ..level..), geom = "polygon")
+  #stat_density_2d(geom = "point", aes(size = ..density..), n = 20, contour = FALSE)
+  geom_hex(binwidth = c(1, 20)) + 
+  theme_bw()
+  
+```
 
 
 
