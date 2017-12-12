@@ -180,19 +180,19 @@ ggplot(g_sd_df) +
   theme_bw()
 ```
 
+
+https://www.youtube.com/watch?v=d7nLL6cUC0I
 ```{r}
 g_sd_df <- filter(g_sd_df, g_sd_df$gender == 'M' | g_sd_df$gender == 'F')
-g_sd_df$error <- (1.96 * g_sd_df$sd_sd) / sqrt(g_sd_df$n) 
+g_sd_df$min_error <- ((g_sd_df$n-1) * (g_sd_df$mean_sd * g_sd_df$mean_sd)) / qchisq(.025, df = g_sd_df$n - 1, lower.tail = FALSE)
+g_sd_df$max_error <- ((g_sd_df$n-1) * (g_sd_df$mean_sd * g_sd_df$mean_sd)) / qchisq(.975, df = g_sd_df$n - 1, lower.tail = FALSE)
 g_sd_df
 
 ggplot(g_sd_df, aes(x=group, y=mean_sd, colour=gender)) +
-  geom_point() +
-  geom_errorbar(aes(ymin=mean_sd - error, ymax=mean_sd + error)) +
+  geom_errorbar(aes(ymin=min_error, ymax=max_error)) +
   scale_color_manual(values=c('violet', 'blue')) +
   theme_bw()
-
 ```
-
 
 
 
