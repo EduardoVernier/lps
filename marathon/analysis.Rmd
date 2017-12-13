@@ -1,9 +1,30 @@
 ---
 title: "2017 Boston Marathon Analysis"
+author: "Eduardo Faccin Vernier"
+date: "December 2017"
 output: html_notebook
 ---
 
-```{r}
+# Introduction
+
+Legend says that after the military victory against the Persians at the Battle of Marathon (490 BC), Greek soldier Pheidippides ran the 42.195 kilometres that separate Marathon and Athens to report the victory. What people seem to forget about this fable is that Pheidippides died *immediately* after delivering the message. And so long-distance running as we know was born...
+
+
+This work analyses the 2017 Boston Marathon that took place on April 17th. Using data collected from 26,400 athletes, we will try to identify relationships between gender, age, ability, finishing times and consistency. We are going to use visualizations and statistics to support our claims.
+
+![](coursemap.jpg)
+
+# Dataset
+
+The dataset used for this study is available at https://www.kaggle.com/rojour/boston-results .
+
+It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place.
+
+Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete.
+The dataset is ordered by finishing time. Below can have a glimpse of the data of the first few runners to cross the line.
+
+```{r results='hide', message=FALSE, warning=FALSE}
+# Import libraries
 library(dplyr);
 library(magrittr);
 library(ggplot2);
@@ -13,12 +34,22 @@ library(readr);
 
 ```{r}
 df <- read.csv("./marathon_results_2017.csv", header=TRUE, stringsAsFactors=FALSE)
+# Select only column
 df <- df[c('Age', 'M.F', 'X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K', 'Official.Time')]
+
+# Filter runners that had technical problems with recording apparatus
 df %<>% filter(X5K != '-' & X10K != '-' & X15K != '-' & X20K != '-' & X25K != '-' & X30K != '-' & X35K != '-' & X40K != '-')
-df
+head(df)
+print(paste("Number of runners: ", nrow(df)))
+print(paste("Number faulty observations: ", 26400 - nrow(df)))
 ```
 
-```{r}
+As we can see, there are 8 columns that show the surpassed time at each 5K mark. Later we'll do some pace variance analysis, so we'll convert these times to be the time passed **not** from the start of the race, but from the mark of the previous 5K split.
+
+This means that, for example, the X15K column will not tell how long it took the runner to run 15 kilometres, but how long it took the runner to run the last 5 kilomentres preceding the 15K mark, i.e., from 10K to 15K. 
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
 cols <- c('X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K')
 df %<>% mutate_each_(funs(as.POSIXct(., format="%H:%M:%S")), cols);
 
@@ -31,29 +62,25 @@ df$X15K <- as.numeric(difftime(df$X15K, df$X10K, units='secs'))
 df$X10K <- as.numeric(difftime(df$X10K, df$X5K, units='secs'))
 df$X5K <- as.numeric(difftime(df$X5K, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
 colnames(df)[colnames(df) == 'M.F'] <- 'Gender'
-df
+head(df)
 ```
+
+Now we can read the data frame above as: it took 925 seconds for runner #1 to run the first 5K of the race, 903s to run the next 5K, and so on. 
+
+But before we move to the analysis of the results, let's take a look at the demographics of the population.
+
+Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the $[18, 39]$ age bracket), and 40+, for the remaining.
 
 
 ```{r}
 demo <- df %>%
   mutate(Gender, Gender = ifelse('M' == Gender,'MEN', 'WOMEN')) %>% 
-  mutate(Age, Age = ifelse(Age > 40, 'OLD', 'YOUNG')) %>% 
+  mutate(Age, Age = ifelse(Age >= 40, '40+', 'YOUNG')) %>% 
   group_by(Gender, Age) %>% 
   count()
 
 demo$comb <- paste(demo$Age, demo$Gender)
-demo
 
-# pie charts in gg plot are just too much work
-#library(scales)
-#ggplot(demo, aes(x="", y=n, fill=factor(comb)))+
-#  geom_bar(width=1, stat="identity") +
-#  scale_fill_manual(values=c("#3617ff", "#e048ce", "#45caff", "#ffc4fb")) + 
-#  coord_polar("y", start=0) 
-```
-
-```{r}
 # Pie Chart with Percentages
 slices <- demo$n
 lbls <- demo$comb
@@ -63,25 +90,35 @@ lbls <- paste(lbls,"%",sep="") # ad % to labels
 pie(slices, labels = lbls, col=c("blue", "cyan", "violet", "pink"), main="Distribution of gender and age")
 ```
 
+Given the pie chart above, we can see that our population composed of 55% men and 45% women.
 
-Finishing times by gender
+As for age, 44% of people are in the "young" range, whilst the remaining are 40 years or older.
+
+The largest group is 40+ men and the smallest is young men, which is interesting.
+
+# How gender and age influence finish-times
+
+The graph below shows compares finishing times between men and women. Because the number of male and female runners differ, the histograms have been normalized.
+
+The plot tells us that men tend to be faster than women. This is not unexpected, as there are physiological reasons why men are capable of faster finish-times than women.
+
 
 ```{r}
 df$Official.Time <- as.POSIXct(df$Official.Time, format="%H:%M:%S")
 ggplot(df, aes(df$Official.Time, fill = df$Gender)) +
-  geom_histogram(aes(y=..density..), alpha=0.6, 
+  geom_histogram(aes(y=..density..), alpha=0.5, 
                  position="identity", lwd=0.2) +
-  ggtitle("Normalized")
+  ggtitle("Normalized finish-times for men vs. women")
 ```
 
 
 ```{r}
 df %>%
-  mutate(Age, Age = ifelse(Age > 40, 'OLD', 'YOUNG')) %>% 
+  mutate(Age, Age = ifelse(Age > 40, '40+', 'YOUNG')) %>% 
   ggplot(aes(Official.Time, fill = Age)) +
-    geom_histogram(aes(y=..density..), alpha=0.6, 
+    geom_histogram(aes(y=..density..), alpha=0.5, 
                  position="identity", lwd=0.2) +
-  ggtitle("Normalized")
+  ggtitle("Normalized finish-times for young vs. 40+")
 
 ```
 
@@ -195,6 +232,23 @@ ggplot(g_sd_df, aes(x=group, y=mean_sd, colour=gender)) +
 ```
 
 
+```{r}
+corr <- df %>%
+  select(cols) %>%
+  transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+  select(c('SD')) %>%
+  as.data.frame()
+
+corr <- bind_cols(corr, select(df, c('Official.Time')))
+
+ggplot(corr, aes(x=Official.Time, y=SD)) +
+  #stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE)
+  #stat_density_2d(aes(fill = ..level..), geom = "polygon")
+  #stat_density_2d(geom = "point", aes(size = ..density..), n = 20, contour = FALSE)
+  geom_hex(binwidth = c(1, 20)) + 
+  theme_bw()
+```
+
 
 ```{r}
 if (!file.exists('animation.gif')) {
@@ -236,26 +290,6 @@ if (!file.exists('animation.gif')) {
 ![](animation.gif)
 
  
-
-
-```{r}
-corr <- df %>%
-  select(cols) %>%
-  transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-  select(c('SD')) %>%
-  as.data.frame()
-
-
-corr <- bind_cols(corr, select(df, c('Official.Time')))
-
-ggplot(corr, aes(x=Official.Time, y=SD)) +
-  #stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE)
-  #stat_density_2d(aes(fill = ..level..), geom = "polygon")
-  #stat_density_2d(geom = "point", aes(size = ..density..), n = 20, contour = FALSE)
-  geom_hex(binwidth = c(1, 20)) + 
-  theme_bw()
-  
-```
 
 
 
