@@ -2,7 +2,7 @@
 title: "2017 Boston Marathon Analysis"
 author: "Eduardo Faccin Vernier"
 date: "December 2017"
-output: html_notebook
+output: rmarkdown::github_document
 ---
 
 # Introduction
@@ -170,7 +170,11 @@ for (i in 1:n_groups) {
   mean_sd <- as.numeric(m_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-                    summarize(sample_sd = mean(SD, na.rm = TRUE), sd(SD, na.rm = TRUE)))
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+  sd_sd <- as.numeric(m_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sd_sd = sd(SD, na.rm = TRUE)))
   n <- as.numeric(m_splits[[i]] %>%
                     select(Official.Time) %>%
                     summarize(n = n()))
@@ -181,7 +185,11 @@ for (i in 1:n_groups) {
   mean_sd <- as.numeric(w_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-                    summarize(sample_sd = mean(SD, na.rm = TRUE), sd(SD, na.rm = TRUE)))
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+  sd_sd <- as.numeric(w_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sd_sd = sd(SD, na.rm = TRUE)))
   n <- as.numeric(w_splits[[i]] %>%
                     select(Official.Time) %>%
                     summarize(n = n()))
@@ -194,6 +202,10 @@ for (i in 1:n_groups) {
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
                     summarize(sample_sd = mean(SD, na.rm = TRUE)))
+  sd_sd <- as.numeric(b_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sd_sd = sd(SD, na.rm = TRUE)))
   n <- as.numeric(b_splits[[i]] %>%
                     select(Official.Time) %>%
                     summarize(n = n()))
