@@ -17,9 +17,9 @@ Dataset
 
 The dataset used for this study is available at <https://www.kaggle.com/rojour/boston-results> .
 
-It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place.
+It consists of 26,262 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place.
 
-Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. Some observations have missing time data, we will filter those out for simplicity. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
+Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. Some observations have missing time data, we will filter those out to simplify the analysis. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
 
 ``` r
 # Import libraries
@@ -90,7 +90,7 @@ df$X5K <- as.numeric(difftime(df$X5K, as.POSIXct('00:00:00', format="%H:%M:%S"),
 
 Before we move to the analysis of the results, let's take a look at the demographics of the population.
 
-Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the \[18, 39\] year old, after that there are 9 age groups each with 5 a year span, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the \[18, 39\] age bracket), and 40+, for the remaining.
+Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the \[18, 39\] year old, after that there are 9 age groups each with a 5 year span. For the sake of conciseness, we'll divide athletes into 2 groups: *young* (belonging to the \[18, 39\] age bracket), and *40+*, for the remaining.
 
 ``` r
 demo <- df %>%

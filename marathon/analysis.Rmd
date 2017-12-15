@@ -17,9 +17,9 @@ This work analyses the 2017 Boston Marathon that took place on April 17th. Using
 
 The dataset used for this study is available at https://www.kaggle.com/rojour/boston-results .
 
-It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place. 
+It consists of 26,262 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place. 
 
-Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. Some observations have missing time data, we will filter those out for simplicity. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
+Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. Some observations have missing time data, we will filter those out to simplify the analysis. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
 
 ```{r results='hide', message=FALSE, warning=FALSE}
 # Import libraries
@@ -66,7 +66,7 @@ df$X5K <- as.numeric(difftime(df$X5K, as.POSIXct('00:00:00', format="%H:%M:%S"),
 
 Before we move to the analysis of the results, let's take a look at the demographics of the population.
 
-Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups each with 5 a year span, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the $[18, 39]$ age bracket), and 40+, for the remaining.
+Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups each with a 5 year span. For the sake of conciseness, we'll divide athletes into 2 groups: *young* (belonging to the $[18, 39]$ age bracket), and *40+*, for the remaining.
 
 
 ```{r}
@@ -95,7 +95,7 @@ The largest group is 40+ men and the smallest is young men.
 
 ## How gender and age influence finish-times
 
-The graph below shows compares finishing times between men and women. Because the number of male and female runners differ, the histograms have been normalized.
+The graph below compares finishing times between men and women. Because the number of male and female runners differ, the histograms have been normalized.
 
 The plot tells us that men tend to be faster than women. This is not unexpected, as there are physiological reasons why men are capable of faster finish-times than women.
 
@@ -104,7 +104,7 @@ df$Official.Time <- as.POSIXct(df$Official.Time, format="%H:%M:%S")
 ggplot(df, aes(df$Official.Time, fill = df$Gender)) +
   geom_histogram(bins = 20, aes(y=..density..), alpha=0.5, position="identity", lwd=0.2) +
   labs(title = "Normalized finish-times for men vs. women", x = "Finish-time (hours)", y = "Density") +
-  scale_fill_discrete(name="Gender") + 
+  scale_fill_discrete(name="Gender", breaks=c("F", "M"), labels=c("WOMEN", "MEN")) + 
   theme_bw()
 ```
 
@@ -316,7 +316,7 @@ We can conjecture that young runners are fit, but are not wise about the limits 
 
 Up until now we've always used some sort of aggretation (age, finish-group, gender) and we've never really looked at the raw data: the split values.
 
-The next animation takes a sample of size 20 from each of the 20 finish intervals we defined earlier. Then sequentially draws the 20 draws from group 1, then the 20 draws from group 2, and so on. To help differentiate groups, each interval is colorcoded acording to the rainbow colormap. On the X axis we have the splits and on the Y axis we have how many seconds it took for the athlete to run that 5 kilometers interval. 
+The next animation takes a sample of size 20 from each of the 20 finish intervals we defined earlier. Then sequentially plots the 20 draws from group 1, then the 20 draws from group 2, and so on. To help differentiate groups, each interval is colorcoded acording to the rainbow colormap (1 - red, 20 - violet). On the X axis we have the splits and on the Y axis we have how many seconds it took for the athlete to run that 5 kilometers interval. 
 
 ```{r}
 if (!file.exists('animation.gif')) {
@@ -365,9 +365,10 @@ There are many interesting conclusion we can draw from this animation:
  
 3 - There is something that our statistics weren't able to show us, but now we can see very clearly: Slow runners tend to start the race fast and finish it slow. We can see that by the positive slopes of the lines for the last groups.
 
+(Claim 3 is based observing a subsample of the space, maybe for the whole population this isn't true, we would need to run more tests to be sure about the claim.)
 
 ## Conclusion
 We've just scrachted the surface in the exploration of marathon data. Yet, with only 7 visualizations, we were able to see very interesting and strong patterns in our results.
 
-And for every question we anwsered, many more were created. For example, are these patterns consistent for different marathons? Does nationality have a big impact on finish-time? Can we identify these same patterns in half-marathons or in ultramarathons? Do other endurance sports (cycling, swimming) show similar trends? The possibilities are endless.
+And for every question we anwsered, many more arose. For example, are these patterns consistent for different marathons? Does nationality have a big impact on finish-time? Can we identify these same patterns in half-marathons or in ultramarathons? Do other endurance sports (cycling, swimming) show similar trends? The possibilities are endless.
 
