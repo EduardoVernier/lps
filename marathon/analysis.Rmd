@@ -9,7 +9,7 @@ output: rmarkdown::github_document
 
 Legend says that after the military victory against the Persians at the Battle of Marathon (490 BC), Greek soldier Pheidippides ran the 42.195 kilometres that separate Marathon and Athens to report the victory. What people seem to forget about this fable is that Pheidippides died *immediately* after delivering the message. And so long-distance running as we know was born...
 
-This work analyses the 2017 Boston Marathon that took place on April 17th. Using data collected from 26,400 athletes, we will try to identify relationships between gender, age, ability, finishing times and consistency. We are going to use visualizations and statistics to support our claims.
+This work analyses the 2017 Boston Marathon that took place on April 17th. Using data collected from 26,262 athletes, we will try to identify relationships between gender, age, ability, finishing times and consistency. We are going to use visualizations and statistics to support our claims.
 
 ![](coursemap.jpg)
 
@@ -17,9 +17,9 @@ This work analyses the 2017 Boston Marathon that took place on April 17th. Using
 
 The dataset used for this study is available at https://www.kaggle.com/rojour/boston-results .
 
-It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place. Some observations have missing time data, we will filter those out for simplicity.
+It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place. 
 
-Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
+Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. Some observations have missing time data, we will filter those out for simplicity. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
 
 ```{r results='hide', message=FALSE, warning=FALSE}
 # Import libraries
@@ -32,7 +32,8 @@ library(readr);
 
 ```{r}
 df <- read.csv("./marathon_results_2017.csv", header=TRUE, stringsAsFactors=FALSE)
-# Select only column
+all_n <- nrow(df)
+# Select only columns of interest
 df <- df[c('Age', 'M.F', 'X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 'X40K', 'Official.Time')]
 
 # Filter runners that had technical problems with recording apparatus
@@ -41,10 +42,10 @@ colnames(df)[colnames(df) == 'M.F'] <- 'Gender'
 
 head(df)
 print(paste("Number of runners: ", nrow(df)))
-print(paste("Number faulty observations: ", 26400 - nrow(df)))
+print(paste("Number faulty observations: ", all_n - nrow(df)))
 ```
 
-As we can see, there are 8 columns that show the surpassed time at each 5K mark. Later we'll do some pace variance analysis, so we'll convert these times to be the time passed **not** from the start of the race, but from the mark of the previous 5K split.
+As we can see, there are 8 columns that show the surpassed time at each 5K mark. Later we'll do some pace variance analysis, so we'll convert these times to be the time passed from the mark of the previous 5K split, and **not** from the start of the race.
 
 This means that, for example, the X15K column will not tell how long it took the runner to run 15 kilometers, but how long it took the runner to run the last 5 kilometers preceding the 15K mark, i.e., from 10K to 15K. 
 
@@ -61,14 +62,11 @@ df$X20K <- as.numeric(difftime(df$X20K, df$X15K, units='secs'))
 df$X15K <- as.numeric(difftime(df$X15K, df$X10K, units='secs'))
 df$X10K <- as.numeric(difftime(df$X10K, df$X5K, units='secs'))
 df$X5K <- as.numeric(difftime(df$X5K, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
-head(df)
 ```
 
-Now we can read the data frame above as: it took 925 seconds for runner #1 to run the first 5K of the race, 903s to run the next 5K, and so on. 
+Before we move to the analysis of the results, let's take a look at the demographics of the population.
 
-But before we move to the analysis of the results, let's take a look at the demographics of the population.
-
-Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups each with 5 a year spa,, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the $[18, 39]$ age bracket), and 40+, for the remaining.
+Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups each with 5 a year span, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the $[18, 39]$ age bracket), and 40+, for the remaining.
 
 
 ```{r}
@@ -93,7 +91,7 @@ Given the pie chart above, we can see that our population composed of 55% men an
 
 As for age, 44% of people are in the "young" range, whilst the remaining are 40 years or older.
 
-The largest group is 40+ men and the smallest is young men, which is interesting.
+The largest group is 40+ men and the smallest is young men.
 
 ## How gender and age influence finish-times
 
@@ -130,13 +128,12 @@ df %>%
 
 
 ## How finish-time, gender and age influence pace consistency
+
 Finish-time is one metric for running performance, but it is not the only one. Pace variation is often seen as an indicator of ability and, generally speaking, less variation in pace is considered to be a sign of a more disciplined and able runner.
 
 We would to see if these two measurements are correlated. That is, are fast runners really more disciplined?
 
-To find out we compute the standard deviation between the 8 5K splits for each runner, and then group them into 20 evenly spaced time-intervals. The first runners to finish the race are in group 1 and last are in group 20 (note that the grouping is not done by finishing position, but finishing-time).
-
-Then for each group we compute the mean standard deviation. The plot below show how finish group relates to pace variation.
+To find out we compute the standard deviation between the 8 5K splits for each runner, and then group them into 20 evenly spaced time-intervals. The first runners to finish the race are in group 1 and last are in group 20 (note that the grouping is not done by finishing position, but finishing-time). Then for each group we compute the mean standard deviation. The plot below show how finish group relates to pace variation.
 
 
 
@@ -221,8 +218,10 @@ for (i in 1:length(intervals)) print(paste("Group ", i,  ' - Finished race in th
 
 
 Based on the plot below we can make two claims:
+
 1 - Fast runners' paces vary less than slow runners.
-2 - Men tend to be less disciplined than women.
+
+2 - Men tend to be less disciplined than women with similar finishing-time.
 
 ```{r}
 ggplot(g_sd_df) +
@@ -233,24 +232,26 @@ ggplot(g_sd_df) +
 
 ```
 
-The graph above is very enlightening but it doesn't take into consideration that some groups have have few runners, introducing a level of uncertainty to the statistics.
+The graph above is very enlightening but it doesn't take into consideration that some groups have a small number of runners, introducing a level of uncertainty to the statistics.
 
-Fortunately, there are ways we can account for that. If want to find out the population standard deviation and we are given a sample standard deviation and sample size, and we assume that our population data is normally distributed, we can use a chi-square distribution to generate a confidence interval.
+Fortunately, there are ways we can account for that. If want to find out the population standard deviation and we are given a sample standard deviation and sample size, assuming that our population data is normally distributed, we can use a chi-square distribution to generate a confidence interval. For the plot below we extracted a 95% confidence interval.
 
-For more info see:
+For more info on the statistics see:
+
 http://www.milefoot.com/math/stat/ci-variances.htm
+
 https://www.youtube.com/watch?v=d7nLL6cUC0I
 
 ```{r}
 g_sd_df <- filter(g_sd_df, g_sd_df$Gender == 'MALE' | g_sd_df$Gender == 'FEMALE')
 g_sd_df$min_error <- ((g_sd_df$n-1) * (g_sd_df$mean_sd * g_sd_df$mean_sd)) / qchisq(.025, df = g_sd_df$n - 1, lower.tail = FALSE)
 g_sd_df$max_error <- ((g_sd_df$n-1) * (g_sd_df$mean_sd * g_sd_df$mean_sd)) / qchisq(.975, df = g_sd_df$n - 1, lower.tail = FALSE)
-g_sd_df
 
 ggplot(g_sd_df, aes(x=group, y=mean_sd, colour=Gender)) +
   geom_errorbar(aes(ymin=min_error, ymax=max_error)) +
   scale_color_manual(values=c('violet', 'blue')) +
-  theme_bw()
+  theme_bw() +
+  labs(title = "Relationship between finish-time and pace variation with 95% confidence", x = "Time group index", y = "Mean standard deviation")
 ```
 
 
@@ -288,42 +289,34 @@ a_sd_df$age <- as.numeric(a_sd_df$age)
 a_sd_df$n <- as.numeric(a_sd_df$n)
 a_sd_df$mean_sd <- as.numeric(a_sd_df$mean_sd)
 a_sd_df$sd_sd <- as.numeric(a_sd_df$sd_sd)
-a_sd_df
 ```
 
+
+Below we see the relationship between age and pace variation. Interestingly, it resembles a parabola with global minima at ~37. 
 
 ```{r}
 a_sd_df$min_error <- ((a_sd_df$n-1) * (a_sd_df$mean_sd * a_sd_df$mean_sd)) / qchisq(.025, df = a_sd_df$n - 1, lower.tail = FALSE)
 a_sd_df$max_error <- ((a_sd_df$n-1) * (a_sd_df$mean_sd * a_sd_df$mean_sd)) / qchisq(.975, df = a_sd_df$n - 1, lower.tail = FALSE)
+a_sd_df <- filter(a_sd_df,  !is.na(min_error))
 
 ggplot(a_sd_df, aes(x=age, y=mean_sd)) +
-  geom_point() +
+  geom_point(aes(size = n)) +
   # Error bars were removed because some ages have very few athletes and error bars were too large
-  #  geom_errorbar(aes(ymin=min_error, ymax=max_error)) +
-  theme_bw()
-
+  # geom_errorbar(aes(ymin=min_error, ymax=max_error)) +
+  theme_bw() + 
+  labs(title = "Relationship between age and pace variation", x = "Age", y = "Mean standard deviation") + 
+  scale_size_continuous(name="# runners per age")
 
 ```
 
+Let's try a thought exercise, after all, isn't that what visualizations are about?
+
+We can conjecture that young runners are fit, but are not wise about the limits of their bodies (maybe they are too eager and overestimate their capacity). As runners get older, they better understand their limits, but their bodies as not as capable anymore. Is the interval of 35-38 years of age the sweetspot between \"wisdom\" and fitness? Again, these are only (interesting) speculations.
 
 
-```{r}
-corr <- df %>%
-  select(cols) %>%
-  transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
-  select(c('SD')) %>%
-  as.data.frame()
+Up until now we've always used some sort of aggretation (age, finish-group, gender) and we've never really looked at the raw data: the split values.
 
-corr <- bind_cols(corr, select(df, c('Official.Time')))
-
-ggplot(corr, aes(x=Official.Time, y=SD)) +
-  #stat_density_2d(geom = "raster", aes(fill = ..density..), contour = FALSE)
-  #stat_density_2d(aes(fill = ..level..), geom = "polygon")
-  #stat_density_2d(geom = "point", aes(size = ..density..), n = 20, contour = FALSE)
-  geom_hex(binwidth = c(1, 20)) + 
-  theme_bw()
-```
-
+The next animation takes a sample of size 20 from each of the 20 finish intervals we defined earlier. Then sequentially draws the 20 draws from group 1, then the 20 draws from group 2, and so on. To help differentiate groups, each interval is colorcoded acording to the rainbow colormap. On the X axis we have the splits and on the Y axis we have how many seconds it took for the athlete to run that 5 kilometers interval. 
 
 ```{r}
 if (!file.exists('animation.gif')) {
@@ -364,9 +357,17 @@ if (!file.exists('animation.gif')) {
 
 ![](animation.gif)
 
+There are many interesting conclusion we can draw from this animation:
  
+1 - The first groups (fastest runners) generate very straight lines parallel to the X axis. They are consistently fast.
+ 
+2 - As we move to slower runners, the lines get less uniform, confirming what our previous statistics told us: pace varies more for slow runners.
+ 
+3 - There is something that our statistics weren't able to show us, but now we can see very clearly: Slow runners tend to start the race fast and finish it slow. We can see that by the positive slopes of the lines for the last groups.
 
 
+## Conclusion
+We've just scrachted the surface in the exploration of marathon data. Yet, with only 7 visualizations, we were able to see very interesting and strong patterns in our results.
 
-
+And for every question we anwsered, many more were created. For example, are these patterns consistent for different marathons? Does nationality have a big impact on finish-time? Can we identify these same patterns in half-marathons or in ultramarathons? Do other endurance sports (cycling, swimming) show similar trends? The possibilities are endless.
 
