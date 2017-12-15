@@ -5,23 +5,21 @@ date: "December 2017"
 output: rmarkdown::github_document
 ---
 
-# Introduction
+## Introduction
 
 Legend says that after the military victory against the Persians at the Battle of Marathon (490 BC), Greek soldier Pheidippides ran the 42.195 kilometres that separate Marathon and Athens to report the victory. What people seem to forget about this fable is that Pheidippides died *immediately* after delivering the message. And so long-distance running as we know was born...
-
 
 This work analyses the 2017 Boston Marathon that took place on April 17th. Using data collected from 26,400 athletes, we will try to identify relationships between gender, age, ability, finishing times and consistency. We are going to use visualizations and statistics to support our claims.
 
 ![](coursemap.jpg)
 
-# Dataset
+## Dataset
 
 The dataset used for this study is available at https://www.kaggle.com/rojour/boston-results .
 
-It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place.
+It consists of 26400 observations (athletes), each of which containing name, age, gender, country, city and state (where available), times at 9 different stages of the race, finish time and pace, overall place, gender place and division place. Some observations have missing time data, we will filter those out for simplicity.
 
-Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete.
-The dataset is ordered by finishing time. Below can have a glimpse of the data of the first few runners to cross the line.
+Given the focus of our analysis, we'll keep only information about the times, sex and gender of each athlete. The dataset is ordered by finishing time. Below we can have a glimpse of the data of the first few runners to cross the line.
 
 ```{r results='hide', message=FALSE, warning=FALSE}
 # Import libraries
@@ -39,6 +37,8 @@ df <- df[c('Age', 'M.F', 'X5K', 'X10K', 'X15K', 'X20K', 'X25K', 'X30K', 'X35K', 
 
 # Filter runners that had technical problems with recording apparatus
 df %<>% filter(X5K != '-' & X10K != '-' & X15K != '-' & X20K != '-' & X25K != '-' & X30K != '-' & X35K != '-' & X40K != '-')
+colnames(df)[colnames(df) == 'M.F'] <- 'Gender'
+
 head(df)
 print(paste("Number of runners: ", nrow(df)))
 print(paste("Number faulty observations: ", 26400 - nrow(df)))
@@ -46,7 +46,7 @@ print(paste("Number faulty observations: ", 26400 - nrow(df)))
 
 As we can see, there are 8 columns that show the surpassed time at each 5K mark. Later we'll do some pace variance analysis, so we'll convert these times to be the time passed **not** from the start of the race, but from the mark of the previous 5K split.
 
-This means that, for example, the X15K column will not tell how long it took the runner to run 15 kilometres, but how long it took the runner to run the last 5 kilomentres preceding the 15K mark, i.e., from 10K to 15K. 
+This means that, for example, the X15K column will not tell how long it took the runner to run 15 kilometers, but how long it took the runner to run the last 5 kilometers preceding the 15K mark, i.e., from 10K to 15K. 
 
 
 ```{r results='hide', message=FALSE, warning=FALSE}
@@ -61,7 +61,6 @@ df$X20K <- as.numeric(difftime(df$X20K, df$X15K, units='secs'))
 df$X15K <- as.numeric(difftime(df$X15K, df$X10K, units='secs'))
 df$X10K <- as.numeric(difftime(df$X10K, df$X5K, units='secs'))
 df$X5K <- as.numeric(difftime(df$X5K, as.POSIXct('00:00:00', format="%H:%M:%S"), units='secs'))
-colnames(df)[colnames(df) == 'M.F'] <- 'Gender'
 head(df)
 ```
 
@@ -69,7 +68,7 @@ Now we can read the data frame above as: it took 925 seconds for runner #1 to ru
 
 But before we move to the analysis of the results, let's take a look at the demographics of the population.
 
-Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the $[18, 39]$ age bracket), and 40+, for the remaining.
+Inside a marathon there are many simultaneous events. There are men and women's division, as well as 10 official divisons by age intervals. The main age group is the $[18, 39]$ year old, after that there are 9 age groups each with 5 a year spa,, but for sake of conciseness, we'll divide athletes into 2 groups: young (belonging to the $[18, 39]$ age bracket), and 40+, for the remaining.
 
 
 ```{r}
@@ -87,7 +86,7 @@ lbls <- demo$comb
 pct <- round(slices/sum(slices)*100)
 lbls <- paste(lbls, pct) # add percents to labels 
 lbls <- paste(lbls,"%",sep="") # ad % to labels 
-pie(slices, labels = lbls, col=c("blue", "cyan", "violet", "pink"), main="Distribution of gender and age")
+pie(slices, labels = lbls, col=c("#0061ff", "#76c3f7", "#f372ff", "#fcc7f8"), main="Distribution of gender and age")
 ```
 
 Given the pie chart above, we can see that our population composed of 55% men and 45% women.
@@ -96,77 +95,73 @@ As for age, 44% of people are in the "young" range, whilst the remaining are 40 
 
 The largest group is 40+ men and the smallest is young men, which is interesting.
 
-# How gender and age influence finish-times
+## How gender and age influence finish-times
 
 The graph below shows compares finishing times between men and women. Because the number of male and female runners differ, the histograms have been normalized.
 
 The plot tells us that men tend to be faster than women. This is not unexpected, as there are physiological reasons why men are capable of faster finish-times than women.
 
-
-```{r}
+```{r results='hide', message=FALSE, warning=FALSE}
 df$Official.Time <- as.POSIXct(df$Official.Time, format="%H:%M:%S")
 ggplot(df, aes(df$Official.Time, fill = df$Gender)) +
-  geom_histogram(aes(y=..density..), alpha=0.5, 
-                 position="identity", lwd=0.2) +
-  ggtitle("Normalized finish-times for men vs. women")
+  geom_histogram(bins = 20, aes(y=..density..), alpha=0.5, position="identity", lwd=0.2) +
+  labs(title = "Normalized finish-times for men vs. women", x = "Finish-time (hours)", y = "Density") +
+  scale_fill_discrete(name="Gender") + 
+  theme_bw()
 ```
 
+The next graph shows finishing times for the two age groups we defined.
 
-```{r}
+We can see that among fast finishing times (let's say below 4 hours), the number of young runners is proportionally higher than that of older runners.
+
+But that doesn't seem to be the case for the slower runners, as we can see that after the 5:00 hour mark, the area under the histogram seems to be equivalent for both age groups. 
+
+In other words: yes, the fastest young runners are faster than the fastest old runners, but that is not true for the slower athletes. That is, age doesn't seem to be of much importance for the least skilled runners.
+
+```{r results='hide', message=FALSE, warning=FALSE}
 df %>%
   mutate(Age, Age = ifelse(Age > 40, '40+', 'YOUNG')) %>% 
   ggplot(aes(Official.Time, fill = Age)) +
-    geom_histogram(aes(y=..density..), alpha=0.5, 
-                 position="identity", lwd=0.2) +
-  ggtitle("Normalized finish-times for young vs. 40+")
-
+    geom_histogram(bins = 20, aes(y=..density..), alpha=0.5, position="identity", lwd=0.2) +
+    labs(title = "Normalized finish-times by age group", x = "Finish-time (hours)", y = "Density") +
+    scale_fill_discrete(name="Age group") + 
+    theme_bw()
 ```
+
+
+## How finish-time, gender and age influence pace consistency
+Finish-time is one metric for running performance, but it is not the only one. Pace variation is often seen as an indicator of ability and, generally speaking, less variation in pace is considered to be a sign of a more disciplined and able runner.
+
+We would to see if these two measurements are correlated. That is, are fast runners really more disciplined?
+
+To find out we compute the standard deviation between the 8 5K splits for each runner, and then group them into 20 evenly spaced time-intervals. The first runners to finish the race are in group 1 and last are in group 20 (note that the grouping is not done by finishing position, but finishing-time).
+
+Then for each group we compute the mean standard deviation. The plot below show how finish group relates to pace variation.
 
 
 
 ```{r}
 n_groups <- 20
-zebra_colormap <- rep(c("darkcyan", "cyan"), 20)
-
-df <- df[df$Official.Time < quantile(df$Official.Time, 0.99), ]
-
-
-#splits = split(df, cut(df$Official.Time, N))  # Time splits
-#splits <- split(df, rep(1:ceiling(nrow(df)/N), each=N, length.out=nrow(df)))  # N marathoners splits
-#df$group <- rep(1:ceiling(nrow(df)/n_groups), each=nrow(df)/n_groups, length.out=nrow(df))  # N marathoners splits
 df$Official.Time <- as.numeric(difftime(df$Official.Time, as.POSIXct('00:00:00', format="%H:%M:%S"), units='mins'))
+df <- df[df$Official.Time < quantile(df$Official.Time, 0.99), ]
 df$group <- cut(df$Official.Time, n_groups)
 
-ggplot(df) + 
-  geom_point(aes(x=1:NROW(df), y=df$Official.Time,  col=as.factor(df$group))) +
-  scale_color_manual(values=zebra_colormap) +
-  theme_bw()
-```
-
-
-
-Are women more disciplined than men?
-```{r}
-women <- df %>%
-  filter(Gender == 'F')
-
-men <- df %>%
-  filter(Gender == 'M')
+women <- df %>% filter(Gender == 'F')
+men <- df %>% filter(Gender == 'M')
 
 b_splits = split(df, df$group)  # Time splits
-w_splits = split(women, women$group)  # Time splits
-m_splits = split(men, men$group)  # Time splits
-
+w_splits = split(women, women$group)  
+m_splits = split(men, men$group)  
 
 g_sd_df <- data.frame("group" = numeric(0),
-                      "gender" = character(0),
+                      "Gender" = character(0),
                       "n" = numeric(0),
                       "mean_sd" = numeric(0),
                       "sd_sd" = numeric(0),
                       stringsAsFactors = FALSE)
 
 for (i in 1:n_groups) {
-  gender <- 'M'
+  gender <- 'MALE'
   mean_sd <- as.numeric(m_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
@@ -180,8 +175,7 @@ for (i in 1:n_groups) {
                     summarize(n = n()))
   g_sd_df[nrow(g_sd_df) + 1,] = c(i, gender, n, mean_sd, sd_sd)
   
-  
-  gender <- 'F'
+  gender <- 'FEMALE'
   mean_sd <- as.numeric(w_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
@@ -197,7 +191,7 @@ for (i in 1:n_groups) {
     g_sd_df[nrow(g_sd_df) + 1,] = c(i, gender, n, mean_sd, sd_sd)
   }
 
-  gender <- 'B'
+  gender <- 'BOTH'
   mean_sd <- as.numeric(b_splits[[i]] %>%
                     select(cols) %>%
                     transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
@@ -213,35 +207,104 @@ for (i in 1:n_groups) {
   
 }
 
-
 g_sd_df$n <- as.numeric(g_sd_df$n)
 g_sd_df$mean_sd <- as.numeric(g_sd_df$mean_sd)
 g_sd_df$sd_sd <- as.numeric(g_sd_df$sd_sd)
 g_sd_df$group <- as.numeric(g_sd_df$group)
-g_sd_df
 ```
 
+
+```{r}
+intervals = unique(df$group)
+for (i in 1:length(intervals)) print(paste("Group ", i,  ' - Finished race in the', intervals[i], 'minutes interval.'))
+```
+
+
+Based on the plot below we can make two claims:
+1 - Fast runners' paces vary less than slow runners.
+2 - Men tend to be less disciplined than women.
 
 ```{r}
 ggplot(g_sd_df) +
-  geom_point(aes(x=group, y=mean_sd, colour=gender)) +
+  geom_point(aes(x=group, y=mean_sd, colour=Gender)) +
   scale_color_manual(values=c('black', 'violet', 'blue')) +
-  theme_bw()
+  theme_bw() +
+  labs(title = "Relationship between finish-time and pace variation", x = "Time group index", y = "Mean standard deviation")
+
 ```
 
+The graph above is very enlightening but it doesn't take into consideration that some groups have have few runners, introducing a level of uncertainty to the statistics.
 
+Fortunately, there are ways we can account for that. If want to find out the population standard deviation and we are given a sample standard deviation and sample size, and we assume that our population data is normally distributed, we can use a chi-square distribution to generate a confidence interval.
+
+For more info see:
+http://www.milefoot.com/math/stat/ci-variances.htm
 https://www.youtube.com/watch?v=d7nLL6cUC0I
+
 ```{r}
-g_sd_df <- filter(g_sd_df, g_sd_df$gender == 'M' | g_sd_df$gender == 'F')
+g_sd_df <- filter(g_sd_df, g_sd_df$Gender == 'MALE' | g_sd_df$Gender == 'FEMALE')
 g_sd_df$min_error <- ((g_sd_df$n-1) * (g_sd_df$mean_sd * g_sd_df$mean_sd)) / qchisq(.025, df = g_sd_df$n - 1, lower.tail = FALSE)
 g_sd_df$max_error <- ((g_sd_df$n-1) * (g_sd_df$mean_sd * g_sd_df$mean_sd)) / qchisq(.975, df = g_sd_df$n - 1, lower.tail = FALSE)
 g_sd_df
 
-ggplot(g_sd_df, aes(x=group, y=mean_sd, colour=gender)) +
+ggplot(g_sd_df, aes(x=group, y=mean_sd, colour=Gender)) +
   geom_errorbar(aes(ymin=min_error, ymax=max_error)) +
   scale_color_manual(values=c('violet', 'blue')) +
   theme_bw()
 ```
+
+
+
+```{r}
+
+
+a_splits = split(df, df$Age)  # Time splits
+
+a_sd_df <- data.frame("age" = character(0),
+                      "n" = numeric(0),
+                      "mean_sd" = numeric(0),
+                      "sd_sd" = numeric(0),
+                      stringsAsFactors = FALSE)
+
+for (i in 1:length(a_splits)) {
+   age <- a_splits[[i]]$Age[1]
+   mean_sd <- as.numeric(a_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sample_sd = mean(SD, na.rm = TRUE)))
+  sd_sd <- as.numeric(a_splits[[i]] %>%
+                    select(cols) %>%
+                    transform(SD=apply(., 1, sd, na.rm = TRUE)) %>%
+                    summarize(sd_sd = sd(SD, na.rm = TRUE)))
+  n <- as.numeric(a_splits[[i]] %>%
+                    select(Official.Time) %>%
+                    summarize(n = n()))
+  a_sd_df[nrow(a_sd_df) + 1,] = c(age, n, mean_sd, sd_sd)
+}
+# 
+# 
+a_sd_df[is.na(a_sd_df)] <- 0
+a_sd_df$age <- as.numeric(a_sd_df$age)
+a_sd_df$n <- as.numeric(a_sd_df$n)
+a_sd_df$mean_sd <- as.numeric(a_sd_df$mean_sd)
+a_sd_df$sd_sd <- as.numeric(a_sd_df$sd_sd)
+a_sd_df
+```
+
+
+```{r}
+a_sd_df$min_error <- ((a_sd_df$n-1) * (a_sd_df$mean_sd * a_sd_df$mean_sd)) / qchisq(.025, df = a_sd_df$n - 1, lower.tail = FALSE)
+a_sd_df$max_error <- ((a_sd_df$n-1) * (a_sd_df$mean_sd * a_sd_df$mean_sd)) / qchisq(.975, df = a_sd_df$n - 1, lower.tail = FALSE)
+
+ggplot(a_sd_df, aes(x=age, y=mean_sd)) +
+  geom_point() +
+  # Error bars were removed because some ages have very few athletes and error bars were too large
+  #  geom_errorbar(aes(ymin=min_error, ymax=max_error)) +
+  theme_bw()
+
+
+```
+
 
 
 ```{r}
